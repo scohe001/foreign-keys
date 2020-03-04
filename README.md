@@ -1,9 +1,25 @@
 # Foreign Key Relationships
 
-Foreign Keys help us link data from two separate tables. In the example here, I'm creating a Meal. To ensure my meal is healthy, I want every meal to have exactly one source of protein. While I could let the user enter a protein as a string and store that, I don't want to give them that freedom. Instead, I want to provide a dropdown with a set list of proteins. So I'll need a protein table to store all the possible proteins:
+### Who will this be useful for?
+
+This guide will be useful for you if you...
+
+- Are still in the process of setting up your backend (database and models) for your Capstone
+- You want the user to be able to enter items that will then later be used in a dropdown and stored as part of another object
+- You have a one-to-many relationship (ie: in the example below, one Meal has many Ingredients)
+
+For more on dotnet db relationships, you can also see the [the Microsoft docs](https://docs.microsoft.com/en-us/ef/core/modeling/relationships) (click the "Data Annotations" tab on examples where applicable to see how you should modify your Model code).
+
+## Basic Foreign Key relationship
+
+Foreign Keys help us link data from two separate tables. In my example capstone, I'm building meals. To ensure a meal is healthy, I want every meal to have exactly one source of protein. However, everyone uses different things as protein sources, so I want the user to be able to enter in their own protein sources and then when building a meal, choose from a dropdown of all of the proteins entered.
+
+I could just have the user enter a string for the protein when creating a meal, but I like the idea of having a dropdown for them to pick from (and this also lets me store things on the protein like CaloriesPerOunce, which I can display alongside the proteins in the dropdown!).
+
+So I'll need a protein table to store all the possible proteins:
 
 | Id |   Title | CaloriesPerOunce |
-|----|----------------------------|-----------------------------|
+|----|---------|------------------|
 | 1  | Chicken | 35               |
 | 2  | Beef    | 50               |
 | 3  | Tofu    | 20               |
@@ -36,7 +52,7 @@ Now for each meal, I want it to reference a protein that it'll use. This is wher
 For example, if my Meal table looks like:
 
 | Id |   Title | MeatId | Total Calories |
-|----|----------------------------|-----------------------------|-----|
+|----|---------|--------|----------------|
 | 1  | Tofu Stir Fry | 3 | 150 |
 | 2  | Chicken Salad | 1 | 200 |
 
@@ -73,7 +89,7 @@ And the coolest part here is that in the C# code, you don't even have to play wi
         }
     }
 
-If you get this far, I'd try for a migration right now. When you open the migration file to check it (which you should do before you update your database!), you should look for the `Up()` function. This is the changes that are about to be applied to your database (`Down() would be the logic that gets run if you rollback this migration). Your `Up()` should look something like:
+If you get this far, I'd try for a migration right now. When you open the migration file to check it (which you should do before you update your database!), you should look for the `Up()` function. This is the changes that are about to be applied to your database (`Down()` would be the logic that gets run if you rollback this migration). Your `Up()` should look something like:
 
     migrationBuilder.CreateTable(
         name: "Proteins",
@@ -112,4 +128,22 @@ If you get this far, I'd try for a migration right now. When you open the migrat
 
 Notice how `MeatItem` isn't going to be part of the table at all. All the table holds is the foreign key `MeatId`, but our ORM will automagically transform that into a Meat item for us to use in C#!
 
-For more on db relationships, see [the Microsoft docs](https://docs.microsoft.com/en-us/ef/core/modeling/relationships).
+## Inverse Property relationship
+
+Having proteins is nice, but the way things are setup, each meal will only have one protein. What if I'm making a Pizza-Builder that needs to add a bunch of toppings?
+
+Again, we'll need a Topping table (similar to the Protein table from before) that the user can populate by creating their own topping types:
+
+| Id |   Title | CaloriesPerOunce |
+|----|---------|------------------|
+| 1  | Olives  | 35               |
+| 2  | Mushroom | 50               |
+| 3  | Pineapple | 20               |
+| 3  | Chicken   | 70               |
+| 3  | Pepperoni | 9999999      |
+
+But how can we link this up with the Pizza table? If I have a `ToppingId` column on Pizza, then I can only hold one topping? How can we accomplish this?
+
+**We'll actually need one more table to act as a linker!**
+
+
