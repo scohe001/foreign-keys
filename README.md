@@ -52,16 +52,16 @@ Now for each meal, I want it to reference a protein that it'll use. This is wher
 
 For example, if my Meal table looks like:
 
-| Id |   Title | MeatId | Total Calories |
+| Id |   Title | ProteinId | Total Calories |
 |----|---------|--------|----------------|
 | 1  | Tofu Stir Fry | 3 | 150 |
 | 2  | Chicken Salad | 1 | 200 |
 
-That `MeatId` column is actually a foreign key or "reference" to the Meat table! So it's saying that Tofu Stir Fry uses `MeatId` 3, which, looking at the Meat table, is tofu!
+That `ProteinId` column is actually a foreign key or "reference" to the Protein table! So it's saying that Tofu Stir Fry uses `ProteinId` 3, which, looking at the Protein table, is tofu!
 
-If we have a foreign key relationship here, we'll also have some safety in our database. If I try to insert a new meal into the Meal table with a bad `MeatId` (one that doesn't exist in the Meat table), SQLite simply won't let me! So you'll have some built in safety if your users manage to bypass your frontend and send you bad data.
+If we have a foreign key relationship here, we'll also have some safety in our database. If I try to insert a new meal into the Meal table with a bad `ProteinId` (one that doesn't exist in the Protein table), SQLite simply won't let me! So you'll have some built in safety if your users manage to bypass your frontend and send you bad data.
 
-And the coolest part here is that in the C# code, you don't even have to play with Id's, all you see is that Meal has a Meat data member:
+And the coolest part here is that in the C# code, you don't even have to play with Id's, all you see is that Meal has a Protein data member:
 
     using System;
     using System.Collections.Generic;
@@ -83,10 +83,10 @@ And the coolest part here is that in the C# code, you don't even have to play wi
             public int Calories { get; set; }
             
             // The actual Id the table is storing. This is the foregin key!
-            public int MeatId { get; set; } 
+            public int ProteinId { get; set; } 
 
-            [ForeignKey("MeatId")] // <-- Needs to match the name of the ForeignKey property
-            public Meat MeatItem { get; set; }
+            [ForeignKey("ProteinId")] // <-- Needs to match the name of the ForeignKey property
+            public Protein ProteinItem { get; set; }
         }
     }
 
@@ -112,7 +112,7 @@ If you get this far, I'd try for a migration right now. When you open the migrat
             Id = table.Column<int>(nullable: false)
             .Annotation("Sqlite:Autoincrement", true),
             Title = table.Column<string>(nullable: true),
-            MeatId = table.Column<int>(nullable: true),
+            ProteinId = table.Column<int>(nullable: true),
             Calories = table.Column<int>(nullable: false)
         
         },
@@ -120,14 +120,14 @@ If you get this far, I'd try for a migration right now. When you open the migrat
         {
             table.PrimaryKey("PK_Meals", x => x.Id);
             table.ForeignKey(
-            name: "FK_Meals_Meats_MeatId",
-            column: x => x.MeatId,
-            principalTable: "Meats",
+            name: "FK_Meals_Proteins_ProteinId",
+            column: x => x.ProteinId,
+            principalTable: "Proteins",
             principalColumn: "Id",
             onDelete: ReferentialAction.Restrict);
         });
 
-Notice how `MeatItem` isn't going to be part of the table at all. All the table holds is the foreign key `MeatId`, but our ORM will automagically transform that into a Meat item for us to use in C#!
+Notice how `ProteinItem` isn't going to be part of the table at all. All the table holds is the foreign key `ProteinId`, but our ORM will automagically transform that into a Protein item for us to use in C#!
 
 ## One-to-Many relationship
 
