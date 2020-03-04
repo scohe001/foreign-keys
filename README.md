@@ -289,7 +289,10 @@ With Pizza, if I want to get all of the toppings, things are a little different,
 
     var myPizza = await _context.Pizzas
                                 .Where(pizza => pizza.Id == myPizzaId)
-                                .Include("PizzaToppings.topping")
+                                .Include(pizza => pizza.PizzaToppings)
+                                    .ThenInclude(pizzaTopping => pizzaTopping.topping)
                                 .ToListAsync();
 
 And now that both the pizza and all of its ingredients are fully loaded into memory, I can pass this `myPizza` into the `GetTotalCalories` function above.
+
+See also the [Microsoft docs on "related data"](https://docs.microsoft.com/en-us/ef/core/querying/related-data).
