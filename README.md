@@ -73,7 +73,7 @@ And the coolest part here is that in the C# code, you don't even have to play wi
         }
     }
 
-If you get this far, I'd try for a migration right now. When you open the migration file to check it (which you should do before you update your database!), it should look something like:
+If you get this far, I'd try for a migration right now. When you open the migration file to check it (which you should do before you update your database!), you should look for the `Up()` function. This is the changes that are about to be applied to your database (`Down() would be the logic that gets run if you rollback this migration). Your `Up()` should look something like:
 
     migrationBuilder.CreateTable(
         name: "Proteins",
