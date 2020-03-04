@@ -262,3 +262,34 @@ Now if I wanted to get the total calories on my pizza, I could do something like
         // This is assuming that each PizzaTopping is one ounce of the topping
         return p.PizzaToppings.Sum(pt => pt.Topping.CaloriesPerOunce);
     }
+
+ ## NOTE:
+
+When fetching data from your db context, any *related* data (`InverseProperties`  or foreign key objects) **will not** be automatically loaded! Your database is lazy, it'll only fetch what it thinks it needs to. So if you're trying to access some related data and you find it's `null`, you may be forgetting to remind the database to fetch them!
+
+For example, if you want to write a query to get a pizza and you want to access its ingredients too, you'll need to manually tell the database to fetch those ingredients!
+
+From the [Microsoft docs on working with data](https://docs.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/work-with-data-in-asp-net-core-apps):
+
+> When EF Core retrieves entities, it populates all of the properties that are stored directly with that entity in the database. Navigation properties, such as lists of related entities, are not populated and may have their value set to null. This ensures EF Core is not fetching more data than is needed, which is especially important for web applications, which must quickly process requests and return responses in an efficient manner. To include relationships with an entity using _eager loading_, you specify the property using the Include extension method on the query, as shown:
+
+    // .Include requires using Microsoft.EntityFrameworkCore 
+    var brandsWithItems = await _context.CatalogBrands 
+                                        .Include(b => b.Items) 
+                                        .ToListAsync();
+
+In the case of Meal from the first example, if you want to also grab the protein from the db, you'll need to do:
+
+    var myMeal = await _context.Meals
+                                .Where(meal => meal.Id == myMealId)
+                                .Include(meal => meal.ProteinItem)
+                                .ToListAsync();
+
+With Pizza, if I want to get all of the toppings, things are a little different, since I need to grab `PizzaToppings` and then on each PizzaTopping I need to grab its Topping. So that'll look like:
+
+    var myPizza = await _context.Pizzas
+                                .Where(pizza => pizza.Id == myPizzaId)
+                                .Include("PizzaToppings.topping")
+                                .ToListAsync();
+
+And now that both the pizza and all of its ingredients are fully loaded into memory, I can pass this `myPizza` into the `GetTotalCalories` function above.
