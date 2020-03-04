@@ -1,4 +1,4 @@
-# Foreign Key Relationships
+gn Key Relationships
 
 ### Who will this be useful for?
 
@@ -6,7 +6,8 @@ This guide will be useful for you if you...
 
 - Are still in the process of setting up your backend (database and models) for your Capstone
 - You want the user to be able to enter items that will then later be used in a dropdown and stored as part of another object
-- You have a one-to-many relationship (ie: in the example below, one Meal has many Ingredients)
+- You want to declare ownership (ie: each user has a list of Meals they've created)
+- You have a many-to-many relationship (ie: each Meal has many Ingredients from the same original list of ingredients)
 
 For more on dotnet db relationships, you can also see the [the Microsoft docs](https://docs.microsoft.com/en-us/ef/core/modeling/relationships) (click the "Data Annotations" tab on examples where applicable to see how you should modify your Model code).
 
@@ -128,22 +129,136 @@ If you get this far, I'd try for a migration right now. When you open the migrat
 
 Notice how `MeatItem` isn't going to be part of the table at all. All the table holds is the foreign key `MeatId`, but our ORM will automagically transform that into a Meat item for us to use in C#!
 
-## Inverse Property relationship
+## One-to-Many relationship
+
+Let's say I want each meal to **belong to** a user. So I want each user to have a list of meals.
+
+To link a meal to a user, I'll add a foreign key to my meal:
+
+	// The actual Id the table is storing. This is the foregin key!
+	public int OwnerId { get; set; } 
+
+	[ForeignKey("OwnerId")] // <-- Needs to match the name of the ForeignKey property
+	public User Owner { get; set; }
+
+You may be thinking "But this is the same thing we did with meals and proteins, isn't it?" And you're correct! We're linking the same way, but semantically we're trying to say something entirely different. Before we meant that every meal *had* a single protein from the list. But now we're trying to say that every meal *belongs* to a user. And because of this different relationship, we want to be able to access a list of meals that a user owns (from the User model). We can tell that to our ORM in the User model by adding:
+
+	[InverseProperty("Owner")] // <-- Needs to match the name in Meal
+	public List<Meal> OwnedMeals { get; set; }
+
+Now I can do something like:
+
+    int GetTotalMealCalories(User someUser) {
+        return someUser.OwnedMeals.Sum(meal => meal.Calories);
+    }
+
+## Many-to-Many relationship (with Inverse Properties)
 
 Having proteins is nice, but the way things are setup, each meal will only have one protein. What if I'm making a Pizza-Builder that needs to add a bunch of toppings?
 
 Again, we'll need a Topping table (similar to the Protein table from before) that the user can populate by creating their own topping types:
 
-| Id |   Title | CaloriesPerOunce |
-|----|---------|------------------|
-| 1  | Olives  | 35               |
-| 2  | Mushroom | 50               |
+| Id |   Title   | CaloriesPerOunce |
+|----|-----------|------------------|
+| 1  | Olives    | 35               |
+| 2  | Mushroom  | 50               |
 | 3  | Pineapple | 20               |
-| 3  | Chicken   | 70               |
-| 3  | Pepperoni | 9999999      |
+| 4  | Chicken   | 70               |
+| 5  | Pepperoni | 9999999          |
 
 But how can we link this up with the Pizza table? If I have a `ToppingId` column on Pizza, then I can only hold one topping? How can we accomplish this?
 
 **We'll actually need one more table to act as a linker!**
 
+So if my Pizza looks like (where `OwnerId` is a foreign key to the user who created the pizza):
 
+| Id |   Title         | Description                  | OwnerId         |
+|----|-----------------|------------------------------|-----------------|
+| 1  | Basic Cheese    | Really just cheese honestly  | 4               |
+| 2  | Ultra Chicken   | Did someone say chicken?     | 3               |
+| 3  | EVERYTHING      | GIVE IT ALL TO ME            | 3               |
+| 4  | Best Pizza Ever | The only way to go tbh       | 1               |
+
+Then I could link Pizza and Topping with a PizzaTopping table:
+
+| Id  | ToppingId | PizzaId |
+|-----|-----------|---------|
+| 1   | 4         | 2       |
+| 2   | 4         | 3       |
+| 3   | 2         | 3       |
+| 4   | 4         | 2       |
+| 5   | 4         | 4       |
+| 6   | 3         | 4       |
+| 7   | 1         | 3       |
+| 8   | 5         | 3       |
+| 9   | 4         | 2       |
+| 10  | 3         | 3       |
+| 11  | 2         | 4       |
+| 12  | 4         | 2       |
+
+What on earth does that mean? It's just a bunch of numbers!
+
+ Since each topping can be on multiple pizzas, and each pizza can have multiple toppings, we need this extra table to tell us which toppings are where and which pizzas have what. So for example, if I wanted to know what the "Ultra Chicken" pizza has on it, I'd look at its Id, which is `2`, and then I'd look for all rows in the PizzaTopping table with a `PizzaId` of `2`. Doing that, I see that "Ultra Chicken" pizza has `ToppingId`'s {4, 4, 4, 4} on it. If I look at what that Id corresponds to in the Topping table I see that..."Ultra Chicken" pizza is just the "Chicken" topping 4 times 🤦‍♂️.
+
+Even though this looks pretty hard to read in your database, on the C# side, we can use your ORM to make things easy as pizza pie!
+
+The linker model here will look like:
+
+	using System;
+	using System.Collections.Generic;
+	using System.ComponentModel.DataAnnotations;
+	using System.ComponentModel.DataAnnotations.Schema;
+	using System.Linq;
+	using System.Threading.Tasks;
+
+	namespace capstone.Models
+	{
+		public class PizzaTopping
+		{
+			[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+			[Key]
+			public int Id { get; set; }
+			
+			public int ToppingId { get; set; }
+			
+			[ForeignKey("ToppingId")]
+			public Topping topping { get; set; }
+			
+			public int PizzaId { get; set; }
+			
+			[ForeignKey("PizzaId")]
+			public Pizza pizza { get; set; }
+		}
+	}
+
+And then on the Pizza side:
+
+	using System;
+	using System.Collections.Generic;
+	using System.ComponentModel.DataAnnotations;
+	using System.ComponentModel.DataAnnotations.Schema;
+	using System.Linq;
+	using System.Threading.Tasks;
+
+	namespace capstone.Models
+	{
+		public class Exercise
+		{
+			[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+			[Key]
+			public int id { get; set; }
+			
+			public string Title { get; set; }
+			public string Description { get; set; }
+			
+			[InverseProperty("pizza")]
+			public List<PizzaTopping> PizzaToppings { get; set; }
+		}
+	}
+
+Now if I wanted to get the total calories on my pizza, I could do something like:
+
+	public int GetTotalCalories(Pizza p) {
+	    // This is assuming that each PizzaTopping is one ounce of the topping
+	    return p.PizzaToppings.Sum(pt => pt.Topping.CaloriesPerOunce);
+	}
